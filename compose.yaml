@@ -1,0 +1,11 @@
+services:
+  reservas:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      DB_PATH: ${DB_PATH:-/data/reservas.db}
+    volumes:
+      - datos:/data
+volumes:
+  datos:
