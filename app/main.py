@@ -2,7 +2,7 @@
 import json, os, re, sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 HORA = re.compile(r"^(0[8-9]|1[0-9]|2[0-1]):00$")  # horas en punto, 08:00 a 21:00
 
 
@@ -24,7 +24,7 @@ def validar(d):
 
 
 def db():
-    path = os.environ.get("DB_PATH", "/data/reservas.db")
+    path = os.environ["DATABASE_PATH"]  # renombrada en 1.5.0
     con = sqlite3.connect(path)
     con.execute("CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cancha INT, hora TEXT, nombre TEXT, UNIQUE(cancha, hora))")
     return con
