@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# dev — dos comandos para trabajar con reservas-canchas sin recordar nada.
+#
+#   ./dev levantar [versión]   construye, levanta y comprueba con una reserva real
+#   ./dev diagnosticar         reúne la evidencia de lo que falló y le pide la causa a una IA
+#
+# Idea de fondo: lo repetible lo hace el script; el juicio lo hace una IA con evidencia;
+# la decisión sigue siendo de una persona.
+set -u
+cd "$(dirname "$0")"
+RUN=.run          # carpeta de trabajo (ignorada por git): aquí vive la versión que se levantó
+PROYECTO=reservas # nombre del proyecto en Docker Compose
+
+# ─────────────────────────────── COMANDO 1 ───────────────────────────────
+levantar() {
+  local V="${1:-HEAD}"                       # versión a levantar: un tag (v1.4.0) o HEAD
+
+  # 1) Prerrequisito: fallar temprano y con un mensaje que se entienda
+  docker info >/dev/null 2>&1 || { echo "✗ Docker no está corriendo. Ábrelo y repite."; return 1; }
+
+  # 2) Configuración: .env se crea desde el ejemplo (nunca se versiona)
+  [ -f .env ] || { cp .env.example .env; echo "· creé .env desde .env.example"; }
+
+  # 3) Extrae el código de ESA versión a .run/ sin mover tu carpeta ni cambiar de rama
+  rm -rf "$RUN" && mkdir "$RUN"
+  git archive "$V" | tar -x -C "$RUN" || { echo "✗ no existe la versión $V"; return 1; }
+  echo "$V" > "$RUN/.version"
+  cp .env "$RUN/.env"
+
+  # 4) Construye y levanta
+  echo "· levantando $V ..."
+  ( cd "$RUN" && docker compose -p "$PROYECTO" up -d --build ) >/dev/null 2>&1 \
+    || { echo "✗ compose falló"; return 1; }
+
+  # 5) Comprueba con una acción real. El puerto sale de .env: no hay nada que editar a mano
+  local PUERTO; PUERTO=$(grep -E '^PORT=' .env | cut -d= -f2)
+  ( cd "$RUN" && ./comprobar.sh "http://localhost:${PUERTO:-8000}" ) | tee "$RUN/comprobar.txt"
+  local rc=${PIPESTATUS[0]}
+
+  # 6) Veredicto en el vocabulario del curso
+  echo
+  if [ "$rc" -eq 0 ]; then
+    echo "ejecutado            POST /reservas devolvió 201 en la versión $V"
+    echo "solo diseñado        despliegue a producción (este demo corre en tu equipo)"
+  else
+    echo "✗ FALLÓ en la versión $V. Siguiente paso:  ./dev diagnosticar"
+  fi
+  return "$rc"
+}
+
+# ─────────────────────────────── COMANDO 2 ───────────────────────────────
+diagnosticar() {
+  [ -f "$RUN/.version" ] || { echo "Primero corre  ./dev levantar"; return 1; }
+  local V PREV; V=$(cat "$RUN/.version")
+  PREV=$(git describe --tags --abbrev=0 "$V^" 2>/dev/null || echo "$V")   # el tag anterior
+
+  # 1) Reunir evidencia: automático y repetible. Sin secretos: NO se incluye .env.
+  {
+    echo "# Evidencia"
+    echo "Versión levantada: $V   (versión anterior conocida: $PREV)"
+    echo; echo "## Resultado de comprobar.sh";  cat "$RUN/comprobar.txt"
+    echo; echo "## Logs del servicio (últimas 25 líneas)"
+    ( cd "$RUN" && docker compose -p "$PROYECTO" logs --tail 25 --no-color 2>&1 )
+    echo; echo "## Pruebas unitarias"
+    ( cd "$RUN" && python3 -m unittest discover -s tests 2>&1 | tail -3 )
+    echo; echo "## Cambios de código y configuración entre $PREV y $V"
+    git diff "$PREV" "$V" -- app Dockerfile compose.yaml .env.example
+  } > "$RUN/evidencia.md"
+  echo "· evidencia reunida en $RUN/evidencia.md ($(wc -l < "$RUN/evidencia.md") líneas)"
+
+  # 2) Interpretar: aquí entra la IA. Recibe instrucciones + evidencia, nada más.
+  if command -v claude >/dev/null 2>&1; then
+    echo "· preguntando a la IA ...\n"
+    claude -p "$(cat herramientas/diagnostico.md)" < "$RUN/evidencia.md"
+  else
+    echo "· no hay 'claude' instalado. Pega herramientas/diagnostico.md + $RUN/evidencia.md en tu IA."
+  fi
+}
+
+case "${1:-}" in
+  levantar)     shift; levantar "$@" ;;
+  diagnosticar) diagnosticar ;;
+  *) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac
