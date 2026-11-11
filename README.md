@@ -5,7 +5,9 @@ Es el servicio de práctica del **Encuentro 1 · Estud-IA, Arquitectura en la nu
 
 ## Cómo ejecutarlo
 
-Requiere Docker con Compose.
+Requiere Docker con Compose. Hay tres caminos que hacen lo mismo, de menos a más automatizado.
+
+**A mano** (entiendes cada paso):
 
 ```bash
 cp .env.example .env
@@ -13,7 +15,31 @@ docker compose up -d --build
 ./comprobar.sh
 ```
 
+**Con el script `dev`** (dos comandos, sin cambiar de rama):
+
+```bash
+./dev levantar v1.4.0     # construye, levanta y comprueba con una reserva real
+./dev levantar v1.5.0     # la versión rota: termina en FALLÓ
+./dev diagnosticar        # reúne la evidencia y le pide la causa a una IA (necesita `claude`)
+```
+
+**Con Claude Code** (un comando; la IA decide qué mirar):
+
+```
+/verificar v1.5.0
+```
+
 La salida esperada de `comprobar.sh` termina en `ok`. Si no, el script dice qué falló.
+
+## Cómo está hecho `dev`
+
+| Parte | Quién la hace | Por qué |
+|---|---|---|
+| Levantar, comprobar, reunir evidencia | Script (`dev`) | Es repetible: siempre los mismos pasos |
+| Interpretar la evidencia | IA (`herramientas/diagnostico.md`) | Requiere juicio: relacionar logs, diff y pruebas |
+| Decidir y aplicar la corrección | Una persona | La IA solo propone; no tiene permiso de escritura |
+
+`dev` no incluye `.env` en la evidencia que envía a la IA.
 
 ## Qué expone
 
