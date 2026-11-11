@@ -7,12 +7,16 @@ Es el servicio de práctica del **Encuentro 1 · Estud-IA, Arquitectura en la nu
 
 Requiere Docker con Compose. Hay tres caminos que hacen lo mismo, de menos a más automatizado.
 
+> `main` contiene el código de `v1.5.0`, que está roto a propósito (Ejercicio 2). Para ver el servicio funcionando, parte de `v1.4.0`.
+
 **A mano** (entiendes cada paso):
 
 ```bash
+git checkout v1.4.0
 cp .env.example .env
 docker compose up -d --build
 ./comprobar.sh
+git checkout main        # al terminar
 ```
 
 **Con el script `dev`** (dos comandos, sin cambiar de rama):
