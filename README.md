@@ -16,6 +16,7 @@ git checkout v1.4.0
 cp .env.example .env
 docker compose up -d --build
 ./comprobar.sh
+docker compose down      # libera el puerto antes de usar ./dev
 git checkout main        # al terminar
 ```
 
