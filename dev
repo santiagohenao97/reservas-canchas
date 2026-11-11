@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # dev — dos comandos para trabajar con reservas-canchas sin recordar nada.
 #
-#   ./dev levantar [versión]   construye, levanta y comprueba con una reserva real
+#   ./dev levantar [versión]   (por defecto v1.4.0) construye, levanta y comprueba con una reserva real
 #   ./dev diagnosticar         reúne la evidencia de lo que falló y le pide la causa a una IA
 #
 # Idea de fondo: lo repetible lo hace el script; el juicio lo hace una IA con evidencia;
@@ -13,7 +13,7 @@ PROYECTO=reservas # nombre del proyecto en Docker Compose
 
 # ─────────────────────────────── COMANDO 1 ───────────────────────────────
 levantar() {
-  local V="${1:-HEAD}"                       # versión a levantar: un tag (v1.4.0) o HEAD
+  local V="${1:-v1.4.0}"                     # versión a levantar: un tag (v1.4.0, v1.5.0) o HEAD
 
   # 1) Prerrequisito: fallar temprano y con un mensaje que se entienda
   docker info >/dev/null 2>&1 || { echo "✗ Docker no está corriendo. Ábrelo y repite."; return 1; }

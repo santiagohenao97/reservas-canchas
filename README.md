@@ -22,7 +22,7 @@ git checkout main        # al terminar
 **Con el script `dev`** (dos comandos, sin cambiar de rama):
 
 ```bash
-./dev levantar v1.4.0     # construye, levanta y comprueba con una reserva real
+./dev levantar v1.4.0     # construye, levanta y comprueba con una reserva real (v1.4.0 es el valor por defecto)
 ./dev levantar v1.5.0     # la versión rota: termina en FALLÓ
 ./dev diagnosticar        # reúne la evidencia y le pide la causa a una IA (necesita `claude`)
 ```
