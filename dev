@@ -61,6 +61,7 @@ diagnosticar() {
     echo; echo "## Resultado de comprobar.sh";  cat "$RUN/comprobar.txt"
     echo; echo "## Logs del servicio (últimas 25 líneas)"
     ( cd "$RUN" && docker compose -p "$PROYECTO" logs --tail 25 --no-color 2>&1 )
+    echo; echo "## compose.yaml (cómo se le pasa la configuración al servicio)"; cat "$RUN/compose.yaml"
     echo; echo "## Pruebas unitarias"
     ( cd "$RUN" && python3 -m unittest discover -s tests 2>&1 | tail -3 )
     echo; echo "## Cambios de código y configuración entre $PREV y $V"
@@ -70,7 +71,7 @@ diagnosticar() {
 
   # 2) Interpretar: aquí entra la IA. Recibe instrucciones + evidencia, nada más.
   if command -v claude >/dev/null 2>&1; then
-    echo "· preguntando a la IA ...\n"
+    echo "· preguntando a la IA ..."; echo
     claude -p "$(cat herramientas/diagnostico.md)" < "$RUN/evidencia.md"
   else
     echo "· no hay 'claude' instalado. Pega herramientas/diagnostico.md + $RUN/evidencia.md en tu IA."
