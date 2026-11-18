@@ -1,0 +1,17 @@
+services:
+  reservas:
+    image: ${IMAGE:-reservas-canchas:local}
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+        REVISION: ${REVISION:-desconocida}
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      DB_PATH: /data/reservas.db   # configuración: por entorno, nunca dentro de la imagen
+      FALLA: ${FALLA:-}
+    volumes:
+      - datos:/data                # datos persistentes: sobreviven a recrear el contenedor
+volumes:
+  datos:

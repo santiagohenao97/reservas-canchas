@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# dev — los mismos pocos comandos en todas las etapas del curso. Cada encuentro agrega uno.
+#
+#   ./dev levantar       construye la imagen, levanta el servicio y lo comprueba con una reserva real
+#   ./dev comprobar      solo la comprobación (el servicio ya está arriba)
+#   ./dev bajar          apaga y libera el puerto (agrega -v para borrar también los datos)
+#   ./dev diagnosticar   reúne la evidencia de lo que falló y se la pasa a una IA (solo lectura)
+#
+# Idea de fondo: lo repetible lo hace el script; el juicio lo hace una IA con evidencia;
+# la decisión sigue siendo de una persona.
+set -u
+cd "$(dirname "$0")"
+PROYECTO=reservas
+EVIDENCIA=.run/evidencia.md
+mkdir -p .run
+
+preparar_env() {
+  [ -f .env ] || { cp .env.example .env; echo "· creé .env desde .env.example"; }
+  set -a; . ./.env; set +a
+}
+puerto() { echo "http://localhost:${PORT:-8000}"; }
+compose() { docker compose -p "$PROYECTO" "$@"; }
+
+levantar() {
+  docker info >/dev/null 2>&1 || { echo "✗ Docker no está corriendo. Ábrelo y repite."; return 1; }
+  preparar_env
+  export APP_VERSION="${APP_VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo dev)}"
+  export REVISION="${REVISION:-$(git rev-parse --short HEAD 2>/dev/null || echo desconocida)}"
+  echo "· construyendo y levantando $APP_VERSION ($REVISION) ..."
+  compose up -d --build >.run/compose.log 2>&1 || { cat .run/compose.log; echo "✗ compose falló"; return 1; }
+  comprobar
+}
+
+comprobar() {
+  preparar_env
+  ./comprobar.sh "$(puerto)" "${APP_VERSION:-}" | tee .run/comprobar.txt
+  local rc=${PIPESTATUS[0]}
+  echo
+  if [ "$rc" -eq 0 ]; then
+    echo "ejecutado            una reserva real se creó y se listó en $(puerto)"
+    echo "solo diseñado        todo lo que no corra en tu equipo (ver docs/etapas)"
+  else
+    echo "✗ FALLÓ. Siguiente paso:  ./dev diagnosticar"
+  fi
+  return "$rc"
+}
+
+bajar() { compose down "$@"; }
+
+diagnosticar() {
+  preparar_env
+  {
+    echo "# Evidencia"; echo "Versión: $(git describe --tags --always --dirty 2>/dev/null)"
+    echo; echo "## Resultado de comprobar.sh"; cat .run/comprobar.txt 2>/dev/null || echo "(no se ha corrido)"
+    echo; echo "## Estado de los contenedores"; compose ps 2>&1
+    echo; echo "## Logs del servicio (últimas 25 líneas)"; compose logs --tail 25 --no-color 2>&1
+    echo; echo "## compose.yaml"; cat compose.yaml
+    echo; echo "## Pruebas unitarias"; python3 -m unittest discover -s tests 2>&1 | tail -3
+    echo; echo "## Último cambio"; git log -1 --stat --format='%h %s' 2>/dev/null
+    git diff HEAD~1 HEAD -- app Dockerfile compose.yaml .env.example 2>/dev/null | head -150
+  } >"$EVIDENCIA"   # NO se incluye .env: sin secretos
+  echo "· evidencia en $EVIDENCIA ($(wc -l <"$EVIDENCIA") líneas)"
+  if command -v claude >/dev/null 2>&1; then
+    echo "· preguntando a la IA ..."; echo
+    claude -p "$(cat herramientas/diagnostico.md)" <"$EVIDENCIA"
+  else
+    echo "· no hay 'claude' instalado: pega herramientas/diagnostico.md + $EVIDENCIA en tu IA."
+  fi
+}
+
+case "${1:-}" in
+  levantar)     levantar ;;
+  comprobar)    comprobar ;;
+  bajar)        shift; bajar "$@" ;;
+  diagnosticar) diagnosticar ;;
+  *) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac

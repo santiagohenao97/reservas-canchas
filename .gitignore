@@ -1,0 +1,16 @@
+.env
+__pycache__/
+*.db
+.run/
+.estado/
+.terraform/
+*.tfstate*
+
+# Material del docente: nunca va al repositorio
+GUION*.md
+COMANDOS*.md
+RECORRIDO*.md
+salidas_*.txt
+*.tar
+_to_delete/
+.claude/
