@@ -1,0 +1,5 @@
+# Los scripts de bash conservan saltos de línea de Unix también al clonar en Windows.
+# Sin esto, Git para Windows los convierte y bash falla con "$'\r': command not found".
+* text=auto
+*.sh text eol=lf
+dev text eol=lf
